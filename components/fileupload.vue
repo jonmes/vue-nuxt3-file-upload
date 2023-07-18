@@ -93,6 +93,7 @@ const {
 const fileInput = ref(null);
 const files = ref([]);
 const uploadedFileCount = ref(0);
+const uploadedFiles = ref(0);
 const rawFiles = ref([]);
 const messages = ref([]);
 const dataUrls = ref([]);
@@ -100,54 +101,24 @@ const isIcon = ref(true);
 const previewSrc = ref(props.init);
 const selectedType = ref([]);
 const focused = ref(false);
-
-const selectedTypeIcon = computed(() => {
-  if (selectedType.value.length) {
-    if (
-      selectedType.value.includes("image/*") ||
-      selectedType.value.includes("image/png") ||
-      selectedType.value.includes("image/jpeg") ||
-      selectedType.value.includes("image/webp")
-    ) {
-      isIcon.value = false;
-      return previewSrc.value;
-    } else if (selectedType.value.includes("application/pdf")) {
-      isIcon.value = true;
-      return "/images/pdfIcon.png";
-    } else if (
-      selectedType.value.includes(".csv") ||
-      selectedType.value.includes("text/csv") ||
-      selectedType.value.includes("application/vnd.ms-excel") ||
-      selectedType.value.includes(
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-      )
-    ) {
-      isIcon.value = true;
-      return "/images/xlsIcon.png";
-    } else if (selectedType.value.includes("application/msword")) {
-      isIcon.value = true;
-      return "/images/docxIcon.png";
-    }
-  } else {
-    isIcon.value = true;
-    return "/images/document_icon.png";
-  }
-});
+const isUploadDone = ref(false);
+const base64Files = ref([]);
 
 onMounted(() => {
   let i = 0;
   const urlToObject = async (imageUrl) => {
+    let filename = imageUrl.split("?")[0].split("/").slice(-1)[0].split(".")[0];
     fetch(imageUrl)
       .then((response) => response.blob())
       .then((blob) => {
         // Create a File object from the Blob
-        const file = new File([blob], "image.jpg", { type: "image/png" });
-        file.objectURL = window.URL.createObjectURL(file);
+        const file = new File([blob], filename, { type: blob.type });
+        file.objectURL = URL.createObjectURL(file);
+        createImage(file);
         files.value.push(file);
       });
   };
   while (i < previewSrc.value?.length) {
-    console.log(previewSrc.value);
     urlToObject(previewSrc.value[i]);
     i++;
   }
@@ -173,7 +144,6 @@ const onFileSelect = async (event) => {
   let _files = event.dataTransfer
     ? event.dataTransfer.files
     : event.target.files;
-  console.log("files", files.value, "na", _files);
 
   for (let file of _files) {
     if (!isFileSelected(file)) {
@@ -181,10 +151,8 @@ const onFileSelect = async (event) => {
         if (isImage(file)) {
           file.objectURL = window.URL.createObjectURL(file);
         }
-
+        createImage(file);
         files.value.push(file);
-        console.log("original event", { originalEvent: event });
-        console.log("working...", files.value);
       } else {
         console.log("the else", messages.value);
       }
@@ -279,7 +247,7 @@ function formatSize(bytes) {
   }
 
   let k = 1000,
-    dm = 3,
+    dm = 1,
     sizes = ["B", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"],
     i = Math.floor(Math.log(bytes) / Math.log(k));
 
@@ -339,6 +307,7 @@ const cancelDisabled = computed(() => {
 function clear() {
   files.value = [];
   messages.value = null;
+  base64Files.value = [];
   emit("clear");
 }
 
@@ -347,14 +316,49 @@ function clearInputElement() {
 }
 
 function remove(index) {
-  console.log(index);
   files.value.splice(index, 1);
+  base64Files.value = [];
+  for (let file of files.value) {
+    createImage(file);
+  }
   //   emits("update:modelValue", a);
 }
+
+const readFile = (file) => {
+  return new Promise(function (resolve, reject) {
+    const fr = new FileReader();
+
+    fr.onload = function () {
+      resolve(fr.result);
+    };
+
+    fr.onerror = function () {
+      reject(fr);
+    };
+
+    fr.readAsDataURL(file);
+  });
+};
+
+function createImage(file) {
+  var reader = new FileReader();
+  reader.onload = (e) => {
+    base64Files.value.push(e.target.result);
+  };
+  reader.readAsDataURL(file);
+}
+
+const upload = () => {
+  isUploadDone.value = true;
+
+  console.log("finally", base64Files.value);
+};
 </script>
 <template>
-  <div class="flex flex-col max-w-[20rem]">
-    <div class="flex gap-x-10">
+  <div
+    class="flex flex-col w-auto border border-gray-400 shadow rounded-md pb-3"
+  >
+    <div class="flex gap-x-10 border-b-2 py-1 px-2 bg-gray-100">
       <input
         ref="fileInput"
         type="file"
@@ -366,29 +370,30 @@ function remove(index) {
         :multiple="fileLimit > 1"
       />
       <button
-        class="px-6 py-1 bg-gray-200 disabled:bg-red-500 cursor-pointer disabled:cursor-not-allowed"
+        class="flex-1 rounded-md px-6 py-1 bg-gray-200 disabled:bg-red-500 cursor-pointer disabled:cursor-not-allowed"
         @click="open"
         :disabled="chooseDisabled"
       >
         Select
       </button>
       <button
-        class="px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
+        @click="upload"
+        class="flex-1 rounded-md px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
         :disabled="uploadDisabled"
       >
-        Upload
+        {{ !!init.length || modelValue ? "Update" : "Upload" }}
       </button>
       <button
         @click="clear"
-        class="px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
+        class="flex-1 rounded-md px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
         :disabled="cancelDisabled"
       >
         Clear
       </button>
     </div>
-    <div class="flex flex-col">
+    <div class="flex flex-col gap-y-5 w-full mt-3 mb-5 px-2">
       <div
-        class="bg-red-100 border-t-4 border-red-500 rounded-b text-teal-900 px-4 py-3 shadow-md flex items-start gap-x-10"
+        class="bg-red-100 border-l-[6px] border-red-500 rounded-l-md text-teal-900 px-4 py-3 shadow-md relative"
         role="alert"
         v-for="msg of messages"
         :key="msg"
@@ -409,17 +414,21 @@ function remove(index) {
             </p>
           </div>
         </div>
-        <button @click="onMessageClose" class="hover:text-red-500 duration-200">
+        <button
+          @click="onMessageClose"
+          class="hover:text-red-500 duration-200 absolute top-2 right-2"
+        >
           <Icon name="carbon:close-outline" width="25" height="25" />
         </button>
       </div>
     </div>
-    <div class="flex flex-col gap-x-5 items-center">
+    <div class="flex flex-col gap-5 items-start px-2">
       <div
         v-for="(file, index) of files"
         :key="file.name + file.type + file.size"
+        class="flex items-center border rounded-md w-full gap-3 px-1 py-3"
       >
-        <div class="overflow-hidden w-[10rem] rounded-md">
+        <div class="overflow-hidden w-[150px] rounded-md">
           <img
             role="presentation"
             :alt="file.name"
@@ -427,13 +436,25 @@ function remove(index) {
             class="object-contain"
           />
         </div>
-        <div>
-          <span class="">{{ formatSize(file.size) }}</span>
-          <!-- <FileUploadBadge :value="badgeValue" :class="cx('badge')" :severity="badgeSeverity" :unstyled="unstyled" :pt="ptm('badge')" /> -->
+        <div class="w-full flex flex-col justify-start items-start">
+          <span class="">{{ file.name }}</span>
+          <div class="flex gap-x-3">
+            <span class="">{{ formatSize(file.size) }}</span>
+            <!-- <span
+              v-if="!isUploadDone"
+              class="bg-orange-400 py-1 px-3 rounded-full text-white text-xs font-bold"
+              >Pending</span
+            >
+            <span
+              v-if="isUploadDone"
+              class="bg-green-500 py-1 px-3 rounded-full text-white text-xs font-bold"
+              >Uploaded</span
+            > -->
+          </div>
         </div>
-        <div>
-          <button @click="remove(index)">X</button>
-        </div>
+        <button @click="remove(index)">
+          <Icon name="carbon:close-outline" width="25" height="25" />
+        </button>
       </div>
     </div>
   </div>
