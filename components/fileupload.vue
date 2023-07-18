@@ -353,58 +353,87 @@ function remove(index) {
 }
 </script>
 <template>
-  <div class="flex gap-x-10">
-    <input
-      ref="fileInput"
-      type="file"
-      class="hidden"
-      :class="[props.inputClass]"
-      :accept="props.accept"
-      @change="onFileSelect"
-      :disabled="disabled"
-      :multiple="fileLimit > 1"
-    />
-    <button
-      class="px-6 py-1 bg-gray-200 disabled:bg-red-500 cursor-pointer disabled:cursor-not-allowed"
-      @click="open"
-      :disabled="chooseDisabled"
-    >
-      Select
-    </button>
-    <button
-      class="px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
-      :disabled="uploadDisabled"
-    >
-      Upload
-    </button>
-    <button
-      @click="clear"
-      class="px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
-      :disabled="cancelDisabled"
-    >
-      Clear
-    </button>
-    <p v-for="msg of messages" :key="msg" class="text-red-600 relative">
-      {{ msg }}
-      <button @click="onMessageClose">X</button>
-    </p>
-
-    <div
-      v-for="(file, index) of files"
-      :key="file.name + file.type + file.size"
-    >
-      <img
-        role="presentation"
-        :alt="file.name"
-        :src="file.objectURL"
-        class="object-contain border rounded-md max-w-[10rem] max-h-[10rem]"
+  <div class="flex flex-col max-w-[20rem]">
+    <div class="flex gap-x-10">
+      <input
+        ref="fileInput"
+        type="file"
+        class="hidden"
+        :class="[props.inputClass]"
+        :accept="props.accept"
+        @change="onFileSelect"
+        :disabled="disabled"
+        :multiple="fileLimit > 1"
       />
-      <div>
-        <span class="">{{ formatSize(file.size) }}</span>
-        <!-- <FileUploadBadge :value="badgeValue" :class="cx('badge')" :severity="badgeSeverity" :unstyled="unstyled" :pt="ptm('badge')" /> -->
+      <button
+        class="px-6 py-1 bg-gray-200 disabled:bg-red-500 cursor-pointer disabled:cursor-not-allowed"
+        @click="open"
+        :disabled="chooseDisabled"
+      >
+        Select
+      </button>
+      <button
+        class="px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
+        :disabled="uploadDisabled"
+      >
+        Upload
+      </button>
+      <button
+        @click="clear"
+        class="px-6 py-1 bg-gray-200 cursor-pointer disabled:bg-red-500 disabled:cursor-not-allowed"
+        :disabled="cancelDisabled"
+      >
+        Clear
+      </button>
+    </div>
+    <div class="flex flex-col">
+      <div
+        class="bg-red-100 border-t-4 border-red-500 rounded-b text-teal-900 px-4 py-3 shadow-md flex items-start gap-x-10"
+        role="alert"
+        v-for="msg of messages"
+        :key="msg"
+      >
+        <div class="flex">
+          <div class="py-1 pr-3">
+            <Icon
+              name="ion:warning-outline"
+              width="35"
+              height="35"
+              color="#ef4444"
+            />
+          </div>
+          <div>
+            <p class="font-bold">{{ msg?.split(",")[1] }}</p>
+            <p class="text-sm">
+              {{ msg?.split(",")[0] }}
+            </p>
+          </div>
+        </div>
+        <button @click="onMessageClose" class="hover:text-red-500 duration-200">
+          <Icon name="carbon:close-outline" width="25" height="25" />
+        </button>
       </div>
-      <div>
-        <button @click="remove(index)">X</button>
+    </div>
+    <div class="flex flex-col gap-x-5 items-center">
+      <div
+        v-for="(file, index) of files"
+        :key="file.name + file.type + file.size"
+      >
+        <div class="overflow-hidden w-[10rem] rounded-md">
+          <img
+            role="presentation"
+            :alt="file.name"
+            :src="file.objectURL"
+            class="object-contain"
+          />
+        </div>
+        <div>
+          <span class="">{{ formatSize(file.size) }}</span>
+          <!-- <FileUploadBadge :value="badgeValue" :class="cx('badge')" :severity="badgeSeverity" :unstyled="unstyled" :pt="ptm('badge')" /> -->
+        </div>
+        <div>
+          <button @click="remove(index)">X</button>
+        </div>
       </div>
     </div>
   </div>
